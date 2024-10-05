@@ -1,0 +1,136 @@
+import java.util.Scanner;
+import java.util.UUID;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class BankingRegistration {
+    private String firstName;
+    private String lastName;
+    private String email;
+    private String password;
+    private String accountType; // e.g. "Savings", "Checking", etc.
+    private String accountNumber;
+
+    public BankingRegistration() {}
+
+    public void registerUser() {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("Welcome to Banking Registration!");
+
+        System.out.print("Enter your first name: ");
+        firstName = scanner.nextLine();
+
+        System.out.print("Enter your last name: ");
+        lastName = scanner.nextLine();
+
+        System.out.print("Enter your email: ");
+        email = scanner.nextLine();
+
+        System.out.print("Enter a password: ");
+        password = scanner.nextLine();
+
+        System.out.print("Choose an account type (Savings, Checking, etc.): ");
+        accountType = scanner.nextLine();
+
+        // Validate user input
+        if (validateUserInput()) {
+            // Generate a unique account number
+            accountNumber = generateAccountNumber();
+
+            // Hash and salt the password
+            String salt = generateSalt();
+            String hashedPassword = hashPassword(password, salt);
+
+            // Store user data in a database
+            storeUserDataInDatabase(firstName, lastName, email, hashedPassword, salt, accountType, accountNumber);
+
+            System.out.println("Registration successful!");
+            System.out.println("Your account details are:");
+            System.out.println("First Name: " + firstName);
+            System.out.println("Last Name: " + lastName);
+            System.out.println("Email: " + email);
+            System.out.println("Account Type: " + accountType);
+            System.out.println("Account Number: " + accountNumber);
+
+            // Send a confirmation email to the user
+            sendConfirmationEmail(email);
+        } else {
+            System.out.println("Registration failed. Please try again.");
+        }
+    }
+
+    private boolean validateUserInput() {
+        // Basic validation: check if all fields are non-empty
+        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || password.isEmpty() || accountType.isEmpty()) {
+            return false;
+        }
+
+        // Additional validation: check if email is in valid format
+        if (!email.contains("@") || !email.contains(".")) {
+            return false;
+        }
+
+        // Additional validation: check if password meets complexity requirements
+        if (password.length() < 8 || !password.matches(".*[a-zA-Z].*") || !password.matches(".*[0-9].*")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private String generateAccountNumber() {
+        return UUID.randomUUID().toString().substring(0, 10);
+    }
+
+    private String generateSalt() {
+        return UUID.randomUUID().toString().substring(0, 10);
+    }
+
+    private String hashPassword(String password, String salt) {
+        // Use a secure hashing algorithm like bcrypt or PBKDF2
+        // For simplicity, we'll use a basic SHA-256 hash
+        String hashedPassword = "";
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            md.update((password + salt).getBytes());
+            byte[] bytes = md.digest();
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            hashedPassword = sb.toString();
+        } catch (Exception e) {
+            System.out.println("Error hashing password: " + e.getMessage());
+        }
+        return hashedPassword;
+    }
+
+    private void storeUserDataInDatabase(String firstName, String lastName, String email, String hashedPassword, String salt, String accountType, String accountNumber) {
+        // Use a JDBC connection to store data in a database
+        String url = "jdbc:mysql://localhost:3306/banking_db";
+        String username = "root";
+        String password = "password";
+
+        try (Connection conn = DriverManager.getConnection(url, username, password)) {
+            PreparedStatement pstmt = conn.prepareStatement("INSERT INTO users (first_name, last_name, email, password, salt, account_type, account_number) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            pstmt.setString(1, firstName);
+            pstmt.setString(2, lastName);
+            pstmt.setString(3, email);
+            pstmt.setString(4, hashedPassword);
+            pstmt.setString(5, salt);
+            pstmt.setString(6, accountType);
+            pstmt.setString(7, accountNumber);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error storing user data in database: " + e.getMessage());
+        }
+    
+    }
+    private void sendConfirmationEmail(String email) {
+        // Use a mail API or library to send an email
+    }
